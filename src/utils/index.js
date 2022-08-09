@@ -115,3 +115,20 @@ export function param2Obj(url) {
   })
   return obj
 }
+
+/** 筛选出pid = rootValue的所有节点
+ * 列表型的数据，转化成树形数据，这里需要用到递归算法
+ */
+export function transListToTree(list, rootValue) {
+  const arr = []
+  list.forEach(item => {
+    if (item.pid === rootValue) { // 当一级
+      const children = transListToTree(list, item.id)
+      if (children.length) {
+        item.children = children
+      }
+      arr.push(item)
+    }
+  })
+  return arr
+}
