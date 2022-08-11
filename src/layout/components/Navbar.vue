@@ -10,7 +10,14 @@
 
     <div class="right-menu">
       <el-dropdown class="avatar-container" trigger="click">
+
         <div class="avatar-wrapper">
+          <!-- 放置切换多语言 -->
+          <lang class="right-menu-item" />
+          <!-- <Lang class="right-menu-item" /> -->
+          <ThemePicker />
+          <ScreenFull style="margin-right: 20px" />
+
           <img v-imgError="defaultImg" :src="$store.getters.avatar" class="user-avatar">
           <span class="name">{{ $store.getters.name }}</span>
           <i class="el-icon-caret-bottom" style="color:#fff" />

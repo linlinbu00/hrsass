@@ -1,47 +1,52 @@
-import router from './router'
-import store from './store'
-// import NProgress from 'nprogress' // 引入一份进度条插件
-// import 'nprogress/nprogress.css' // 引入进度条样式
-
-const loginPath = '/login'
-const notFoundPath = '/404'
-// 白名单 --login页面和404页面
-const whiteList = [loginPath, notFoundPath]
-// 前置守卫
-// 监听路由的变化
-router.beforeEach(async(to, from, next) => {
-  // NProgress.start()
-  const token = store.getters.token // 此时token固定
-  // 存在token
-  if (token) {
-    // 有token的位置去获取用户资料
-    // 如果没有id这个值 才会调用 vuex的获取资料的action
-    if (!store.getters.token) {
-      const res = await store.dispatch('user/getUserInfo')
-      console.log(res)
-      // 添加用户拥有的路由权限再去跳转
-      const routes = await store.dispatch('permission/filterRoutes', res.roles.menus)
-      router.addRoutes([...routes, { path: '*', redirect: '/404', hidden: true }])
-    }
-    // 如果去到的路径是登陆页面停留在首页
-    if (to.path === loginPath) {
-      next('/')
-    } else {
-      // 否则放行
-      next()
-    }
-  } else {
-    // 没有token时 如果想去到白名单里 直接放行
-    if (whiteList.includes(to.path)) {
-      next()
-    } else {
-      // 想去到别的页面 跳到登陆页面
-      next(loginPath)
-    }
+// vuex的权限模块
+import { constantRoutes, asyncRoutes, resetRouter } from '@/router'
+import { getUserInfo, getUserDetailById } from '@/api/user'
+// vuex中的permission模块用来存放当前的 静态路由 + 当前用户的 权限路由
+const state = {
+  routes: constantRoutes // 所有人默认拥有静态路由
+}
+const mutations = {
+  // newRoutes可以认为是 用户登录 通过权限所得到的动态路由的部分
+  setRoutes(state, newRoutes) {
+    // 下面这么写不对 不是语法不对 是业务不对
+    // state.routes = [...state.routes, ...newRoutes]
+    // 有一种情况  张三 登录 获取了动态路由 追加到路由上  李四登录 4个动态路由
+    // 应该是每次更新 都应该在静态路由的基础上进行追加
+    state.routes = [...constantRoutes, ...newRoutes]
   }
-  // NProgress.done()
-})
-// 后置守卫
-// router.afterEach(function() {
-//   NProgress.done() // 关闭进度条
-// })
+}
+const actions = {
+  // 筛选权限路由
+  // 第二个参数为当前用户的所拥有的菜单权限
+  // menus: ["settings","permissions"]
+  // asyncRoutes是所有的动态路由
+  // asyncRoutes  [{path: 'setting',name: 'setting'},{}]
+  async filterRoutes(context, menus) {
+    //   筛选出 动态路由中和menus中能够对上的路由
+    const resRoutes = asyncRoutes.filter((item) => {
+      return menus.includes(item.name)
+    })
+    // 得到的routes是所有模块中满足权限要求的路由数组
+    // routes就是当前用户所拥有的 动态路由的权限
+    context.commit('setRoutes', resRoutes) // 将动态路由提交给mutations
+    // 这里为什么还要return  state数据 是用来 显示左侧菜单用的  return  是给路由addRoutes用的
+    const res = await getUserInfo()
+    const baseInfo = await getUserDetailById(res.userId)
+    return {
+      ...baseInfo,
+      ...res
+    }
+  },
+  logOut(context) {
+    context.commit('removeToken')
+    context.commit('removeUserInfo')
+    resetRouter()
+    context.commit('permission/setRoutes', [], { root: true })
+  }
+}
+export default {
+  namespaced: true,
+  state,
+  mutations,
+  actions
+}
